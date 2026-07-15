@@ -1,13 +1,21 @@
+import { useEffect, useState } from "react";
 import Card from "../../components/Card.jsx";
-
-const LOGS = [
-  { subject: "Q3 Newsletter", group: "Marketing", sentTo: 320, date: "Jul 4, 2026" },
-  { subject: "Welcome Series #1", group: "Sales", sentTo: 145, date: "Jul 2, 2026" },
-  { subject: "VIP Exclusive Offer", group: "VIP Clients", sentTo: 42, date: "Jun 29, 2026" },
-  { subject: "Support Follow-up", group: "Support", sentTo: 88, date: "Jun 25, 2026" },
-];
+import { useAuth } from "../../context/AuthContext.jsx";
+import { getEmailHistory } from "../../services/emailService.js";
 
 export default function History() {
+  const { user } = useAuth();
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    getEmailHistory(user.id_user)
+      .then(setLogs)
+      .catch((err) => alert(err.message))
+      .finally(() => setLoading(false));
+  }, [user]);
+
   return (
     <div className="stack">
       <div>
@@ -21,18 +29,24 @@ export default function History() {
             <thead>
               <tr>
                 <th>Subject</th>
-                <th>Group</th>
+                <th>Status</th>
                 <th>Sent To</th>
                 <th>Date</th>
               </tr>
             </thead>
             <tbody>
-              {LOGS.map((log) => (
-                <tr key={log.subject}>
+              {loading && (
+                <tr><td colSpan={4}>Loading…</td></tr>
+              )}
+              {!loading && logs.length === 0 && (
+                <tr><td colSpan={4}>No emails sent yet.</td></tr>
+              )}
+              {logs.map((log) => (
+                <tr key={log.id_email}>
                   <td style={{ fontWeight: 700 }}>{log.subject}</td>
-                  <td>{log.group}</td>
-                  <td>{log.sentTo}</td>
-                  <td>{log.date}</td>
+                  <td><span className={`badge${log.status === "partial" ? " muted" : ""}`}>{log.status}</span></td>
+                  <td>{log.recipients_count}</td>
+                  <td>{new Date(log.sent_at).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>

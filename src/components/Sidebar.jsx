@@ -1,5 +1,6 @@
 
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 
 import groupBuilder from "../assets/icons/group.png";
 import dashboardGrid from "../assets/icons/grid.png";
@@ -46,11 +47,22 @@ export default function Sidebar({
   mobileOpen,
   onClose,
 }) {
+  const { user, logout } = useAuth();
+
   const menuItems =
     role === "manager" ? managerMenu : employeeMenu;
 
   const toolItems =
     role === "manager" ? managerTools : employeeTools;
+
+  const displayName = user?.username || "Guest";
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   return (
     <>
@@ -130,11 +142,11 @@ export default function Sidebar({
         </NavLink>
 
         <div className="sidebar-user">
-          <div className="sidebar-user-avatar">SM</div>
+          <div className="sidebar-user-avatar">{initials || "?"}</div>
 
           <div>
             <p className="sidebar-user-name">
-              Sarah Miller
+              {displayName}
             </p>
 
             <p className="sidebar-user-role">
@@ -146,6 +158,10 @@ export default function Sidebar({
         <NavLink
           to="/login"
           className="logout-link"
+          onClick={() => {
+            logout();
+            onClose && onClose();
+          }}
         >
           Log out
         </NavLink>

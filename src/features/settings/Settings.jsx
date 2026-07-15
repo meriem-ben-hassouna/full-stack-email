@@ -1,10 +1,9 @@
-import { useState } from "react";
 import Card from "../../components/Card.jsx";
 import Button from "../../components/Button.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function Settings() {
-  const [role] = useState("Manager"); // swap with real user role once auth is wired up
-  const [notifications, setNotifications] = useState(true);
+  const { user, isManager } = useAuth();
 
   return (
     <div className="stack max-narrow">
@@ -18,31 +17,34 @@ export default function Settings() {
         <div className="stack">
           <div className="field">
             <label>Full name</label>
-            <input type="text" defaultValue="Sarah Miller" />
+            <input type="text" value={user?.username || ""} disabled />
           </div>
           <div className="field">
             <label>Email</label>
-            <input type="email"  />
+            <input type="email" value={user?.email || ""} disabled />
           </div>
           <div className="field">
             <label>Role</label>
-            <input type="text" value={role} disabled />
+            <input type="text" value={isManager ? "Manager" : "Employee"} disabled />
           </div>
           <div className="field">
-            <label>Department</label>
-            <input type="text" disabled />
+            <label>Company</label>
+            <input type="text" value={user?.company_name || ""} disabled />
           </div>
-          <div className="field">
-            <label>Company Code</label>
-            <input type="password" defaultValue="********" disabled />
-          </div>
-          
+          {isManager && (
+            <div className="field">
+              <label>Company Code</label>
+              <input type="text" value={user?.company_code || ""} disabled />
+              <p className="dropzone-hint" style={{ marginTop: 6 }}>
+                Share this code (with your company name) with employees so
+                they can join your workspace.
+              </p>
+            </div>
+          )}
         </div>
       </Card>
 
-      
-
-      <Button>Save Changes</Button>
+      <Button disabled>Save Changes</Button>
     </div>
   );
 }

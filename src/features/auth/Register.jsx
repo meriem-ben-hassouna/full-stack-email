@@ -1,14 +1,9 @@
-
-
-
-
-
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Button from "../../components/Button.jsx";
-import Lmanager from"../../assets/icons/managerl.png"
-import Lemployee from"../../assets/icons/employeel.png"
+import Lmanager from "../../assets/icons/managerl.png";
+import Lemployee from "../../assets/icons/employeel.png";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function Register() {
   const [role, setRole] = useState("manager"); // "manager" | "employee"
@@ -19,16 +14,31 @@ export default function Register() {
     companyName: "",
     companyCode: "",
   });
+  const [loading, setLoading] = useState(false);
+  const { registerManager, registerEmployee } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: no database yet — once connected, a manager account should
-    // generate/store a company code, and an employee account should be
-    // validated against that code before creating the account.
-    navigate("/dashboard");
+    setLoading(true);
+    try {
+      if (role === "manager") {
+        // Creates a brand-new company + manager account for it.
+        // Fails (with an alert) if that company name/code is already taken.
+        await registerManager(form);
+      } else {
+        // Joins an existing company — fails if name+code don't match a
+        // real company.
+        await registerEmployee(form);
+      }
+      navigate("/dashboard");
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -43,10 +53,10 @@ export default function Register() {
           onClick={() => setRole("manager")}
         >
           <span className="role-icon-box">
-            <img 
+            <img
                 src={Lmanager}
-                alt="Role icon" 
-                style={{ width: '46px', height: '46px' }} 
+                alt="Role icon"
+                style={{ width: '46px', height: '46px' }}
             />
 </span>
           <span>
@@ -61,10 +71,10 @@ export default function Register() {
           onClick={() => setRole("employee")}
         >
           <span className="role-icon-box">
-            <img 
+            <img
                 src={Lemployee}
-                alt="Role icon" 
-                style={{ width: '46px', height: '46px' }} 
+                alt="Role icon"
+                style={{ width: '46px', height: '46px' }}
             />
 </span>
           <span>
@@ -134,10 +144,20 @@ export default function Register() {
           placeholder="Example: ACM458"
           required
         />
+        {role === "manager" ? (
+          <p className="dropzone-hint" style={{ marginTop: 6 }}>
+            Pick a unique code — employees will use it (with the company
+            name) to join your workspace.
+          </p>
+        ) : (
+          <p className="dropzone-hint" style={{ marginTop: 6 }}>
+            Ask your manager for the exact company name and code.
+          </p>
+        )}
       </div>
 
-        <Button type="submit" className="btn-block" style={{ marginTop: 4 }}>
-          Create Workspace
+        <Button type="submit" className="btn-block" style={{ marginTop: 4 }} disabled={loading}>
+          {loading ? "Creating..." : "Create Workspace"}
         </Button>
       </form>
 

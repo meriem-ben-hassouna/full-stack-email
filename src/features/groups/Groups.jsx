@@ -1,85 +1,131 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Card from "../../components/Card.jsx";
 import Button from "../../components/Button.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 
-// ---- mock contact files (left panel) ----
-const NAME_POOL = [
-  "Sarah Chen", "Tom Harrington", "James Okafor", "Elena Volkov",
-  "Marcus Webb", "Priya Nair", "Liam Carter", "Ava Thompson",
-  "Noah Patel", "Emma Rodriguez", "Grace Kim", "Daniel Osei",
-];
-
-function makeContacts(fileId, count) {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `${fileId}-c${i}`,
-    name: NAME_POOL[i % NAME_POOL.length],
-  }));
-}
-
-const FILES = [
-  { id: "f1", name: "File 1 — Marketing department employees", count: 8 },
-  { id: "f2", name: "File 2 — IT department employees", count: 6 },
-  { id: "f3", name: "File 3 — Interns", count: 5 },
-  { id: "f4", name: "File 4 — Clients", count: 10 },
-].map((f) => ({ ...f, contacts: makeContacts(f.id, f.count) }));
-
-// ---- initial groups (right panel) ----
-const INITIAL_GROUPS = [
-  {
-    id: "g1",
-    name: "Engineering Team",
-    members: [
-      { id: "f2-c0", name: "Sarah Chen" },
-      { id: "f2-c2", name: "James Okafor" },
-    ],
-  },
-  {
-    id: "g2",
-    name: "Team Leaders",
-    members: [
-      { id: "f2-c0", name: "Sarah Chen" },
-      { id: "f1-c3", name: "Elena Volkov" },
-    ],
-  },
-];
+import { getContactFiles, getFileContacts } from "../../services/contactService.js";
+import {
+  getGroups,
+  getGroupWithMembers,
+  createGroup,
+  deleteGroup,
+  addContactToGroup,
+  addContactsToGroup,
+  removeContactFromGroup,
+} from "../../services/groupService.js";
 
 function initials(name) {
-  return name.split(" ").map((n) => n[0]).join("");
+  return name.split(" ").filter(Boolean).map((n) => n[0]).slice(0, 2).join("");
 }
 
 export default function Groups() {
-  const [groups, setGroups] = useState(INITIAL_GROUPS);
+  const { user, isManager } = useAuth();
+
+  const [files, setFiles] = useState([]); // contact files (left panel, closed)
+  const [openFileId, setOpenFileId] = useState(null);
+  const [openFileContacts, setOpenFileContacts] = useState([]);
+  const [loadingFileContacts, setLoadingFileContacts] = useState(false);
+
+  const [groups, setGroups] = useState([]); // groups with members: {id_group, name, members:[...]}
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
-  const [openFileId, setOpenFileId] = useState(null);
   const [query, setQuery] = useState("");
   const [dragOverId, setDragOverId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const openFile = FILES.find((f) => f.id === openFileId) || null;
+  async function loadEverything() {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const [fileList, groupList] = await Promise.all([
+        getContactFiles(user.company_id),
+        getGroups(user.company_id),
+      ]);
+      setFiles(fileList);
 
-  const handleAddGroup = (e) => {
+      const withMembers = await Promise.all(
+        groupList.map((g) => getGroupWithMembers(g.id_group))
+      );
+      setGroups(withMembers);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadEverything();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const openFile = files.find((f) => f.id_file === openFileId) || null;
+
+  useEffect(() => {
+    if (!openFileId) {
+      setOpenFileContacts([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingFileContacts(true);
+    getFileContacts(openFileId)
+      .then((contacts) => {
+        if (!cancelled) setOpenFileContacts(contacts);
+      })
+      .catch((err) => alert(err.message))
+      .finally(() => {
+        if (!cancelled) setLoadingFileContacts(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [openFileId]);
+
+  const refreshGroup = async (groupId) => {
+    const full = await getGroupWithMembers(groupId);
+    setGroups((prev) => prev.map((g) => (g.id_group === groupId ? full : g)));
+  };
+
+  const handleAddGroup = async (e) => {
     e.preventDefault();
     if (!newGroupName.trim()) return;
-    setGroups([...groups, { id: `g${Date.now()}`, name: newGroupName, members: [] }]);
-    setNewGroupName("");
-    setShowNewGroup(false);
+    try {
+      const created = await createGroup({
+        name: newGroupName.trim(),
+        companyId: user.company_id,
+        createdBy: user.id_user,
+      });
+      setGroups((prev) => [...prev, { ...created, members: [] }]);
+      setNewGroupName("");
+      setShowNewGroup(false);
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  const removeGroup = (groupId) => setGroups(groups.filter((g) => g.id !== groupId));
-
-  const removeMember = (groupId, memberId) => {
-    setGroups(groups.map((g) =>
-      g.id === groupId ? { ...g, members: g.members.filter((m) => m.id !== memberId) } : g
-    ));
+  const removeGroup = async (groupId) => {
+    if (!window.confirm("Delete this group?")) return;
+    try {
+      await deleteGroup(groupId);
+      setGroups((prev) => prev.filter((g) => g.id_group !== groupId));
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  const addMembersToGroup = (groupId, incoming) => {
-    setGroups(groups.map((g) => {
-      if (g.id !== groupId) return g;
-      const existingIds = new Set(g.members.map((m) => m.id));
-      const merged = [...g.members, ...incoming.filter((m) => !existingIds.has(m.id))];
-      return { ...g, members: merged };
-    }));
+  const removeMember = async (groupId, contactId) => {
+    try {
+      await removeContactFromGroup(groupId, contactId);
+      setGroups((prev) =>
+        prev.map((g) =>
+          g.id_group === groupId
+            ? { ...g, members: g.members.filter((m) => m.id_contact !== contactId) }
+            : g
+        )
+      );
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const handleDragStart = (e, payload) => {
@@ -87,7 +133,7 @@ export default function Groups() {
     e.dataTransfer.effectAllowed = "copy";
   };
 
-  const handleDrop = (e, groupId) => {
+  const handleDrop = async (e, groupId) => {
     e.preventDefault();
     setDragOverId(null);
     let payload;
@@ -96,16 +142,31 @@ export default function Groups() {
     } catch {
       return;
     }
-    if (payload.type === "contact") {
-      addMembersToGroup(groupId, [payload.contact]);
-    } else if (payload.type === "file") {
-      addMembersToGroup(groupId, payload.contacts);
+
+    try {
+      if (payload.type === "contact") {
+        await addContactToGroup(groupId, payload.contact.id_contact);
+      } else if (payload.type === "file") {
+        await addContactsToGroup(groupId, payload.contacts.map((c) => c.id_contact));
+      }
+      await refreshGroup(groupId);
+    } catch (err) {
+      alert(err.message);
     }
   };
 
-  const filteredFiles = FILES.filter((f) =>
-    f.name.toLowerCase().includes(query.toLowerCase())
+  const filteredFiles = files.filter((f) =>
+    f.filename.toLowerCase().includes(query.toLowerCase())
   );
+
+  if (!isManager) {
+    return (
+      <div className="stack">
+        <h1 className="page-title">Group Builder</h1>
+        <p className="page-subtitle">Only managers can build and edit contact groups.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="stack">
@@ -128,21 +189,31 @@ export default function Groups() {
                 placeholder="Search"
               />
               <div>
-                {filteredFiles.map((file) => (
+                {loading && <p className="group-empty">Loading files…</p>}
+                {!loading && filteredFiles.length === 0 && (
+                  <p className="group-empty">No contact files uploaded yet.</p>
+                )}
+                {filteredFiles.map((file, idx) => (
                   <div
-                    key={file.id}
+                    key={file.id_file}
                     className="file-row"
                     draggable
-                    onDragStart={(e) =>
-                      handleDragStart(e, { type: "file", contacts: file.contacts })
-                    }
-                    onClick={() => setOpenFileId(file.id)}
+                    onDragStart={async (e) => {
+                      // fetch this file's contacts on the fly for the drag payload
+                      try {
+                        const contacts = await getFileContacts(file.id_file);
+                        handleDragStart(e, { type: "file", contacts });
+                      } catch (err) {
+                        e.preventDefault();
+                        alert(err.message);
+                      }
+                    }}
+                    onClick={() => setOpenFileId(file.id_file)}
                   >
                     <div className="file-row-left">
                       <span className="file-icon">▤</span>
-                      <span className="file-name">{file.name}</span>
+                      <span className="file-name">File {idx + 1} – {file.filename}</span>
                     </div>
-                    <span className="file-meta">{file.count} lines</span>
                   </div>
                 ))}
               </div>
@@ -153,13 +224,14 @@ export default function Groups() {
                 ← Back
               </button>
               <div className="gb-panel-header">
-                <span className="gb-panel-title">{openFile.name}</span>
+                <span className="gb-panel-title">{openFile.filename}</span>
               </div>
-              <input className="gb-search" placeholder="Search for file" />
+              <input className="gb-search" placeholder="Search for file" disabled />
               <div>
-                {openFile.contacts.map((contact) => (
+                {loadingFileContacts && <p className="group-empty">Loading…</p>}
+                {openFileContacts.map((contact) => (
                   <div
-                    key={contact.id}
+                    key={contact.id_contact}
                     className="contact-row"
                     draggable
                     onDragStart={(e) => handleDragStart(e, { type: "contact", contact })}
@@ -194,20 +266,20 @@ export default function Groups() {
           <div className="group-list">
             {groups.map((g) => (
               <Card
-                key={g.id}
-                className={`group-card${dragOverId === g.id ? " drag-over" : ""}`}
+                key={g.id_group}
+                className={`group-card${dragOverId === g.id_group ? " drag-over" : ""}`}
                 onDragOver={(e) => {
                   e.preventDefault();
-                  setDragOverId(g.id);
+                  setDragOverId(g.id_group);
                 }}
                 onDragLeave={() => setDragOverId(null)}
-                onDrop={(e) => handleDrop(e, g.id)}
+                onDrop={(e) => handleDrop(e, g.id_group)}
               >
                 <div className="group-header">
                   <span className="group-dot" />
                   <span className="group-name">{g.name}</span>
                   <span className="group-count">{g.members.length}</span>
-                  <button className="group-remove" onClick={() => removeGroup(g.id)} aria-label="Delete group">
+                  <button className="group-remove" onClick={() => removeGroup(g.id_group)} aria-label="Delete group">
                     ×
                   </button>
                 </div>
@@ -217,9 +289,9 @@ export default function Groups() {
                 ) : (
                   <div className="member-pills">
                     {g.members.map((m) => (
-                      <span className="member-pill" key={m.id}>
+                      <span className="member-pill" key={m.id_contact}>
                         {m.name}
-                        <button onClick={() => removeMember(g.id, m.id)} aria-label={`Remove ${m.name}`}>
+                        <button onClick={() => removeMember(g.id_group, m.id_contact)} aria-label={`Remove ${m.name}`}>
                           ×
                         </button>
                       </span>
@@ -234,4 +306,3 @@ export default function Groups() {
     </div>
   );
 }
-
