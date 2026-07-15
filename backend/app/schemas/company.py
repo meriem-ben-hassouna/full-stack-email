@@ -5,6 +5,16 @@ from datetime import datetime
 
 
 # =========================
+# COMPANY CREATE
+# =========================
+
+class CompanyCreate(BaseModel):
+    name: str
+    code: str
+
+
+
+# =========================
 # COMPANY RESPONSE
 # =========================
 

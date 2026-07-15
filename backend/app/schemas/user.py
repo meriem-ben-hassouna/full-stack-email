@@ -49,8 +49,21 @@ class UserResponse(BaseModel):
     username: str
     email: EmailStr
     role: Role
+    company_id: UUID
     created_at: datetime
 
 
     class Config:
         from_attributes = True
+
+
+
+# =========================
+# USER RESPONSE WITH COMPANY INFO
+# (returned on login / register so the frontend can display
+# company name + code without an extra request)
+# =========================
+
+class UserWithCompanyResponse(UserResponse):
+    company_name: str
+    company_code: str

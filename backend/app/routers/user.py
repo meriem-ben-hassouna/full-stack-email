@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from passlib.context import CryptContext
+import bcrypt
 
 from app.database import get_db
 
@@ -13,8 +13,22 @@ from app.schemas.user import (
     ManagerRegister,
     EmployeeRegister,
     LoginRequest,
-    UserResponse
+    UserResponse,
+    UserWithCompanyResponse
 )
+
+
+def _with_company(user: User, company: Company) -> dict:
+    return {
+        "id_user": user.id_user,
+        "username": user.username,
+        "email": user.email,
+        "role": user.role,
+        "company_id": user.company_id,
+        "created_at": user.created_at,
+        "company_name": company.name,
+        "company_code": company.code,
+    }
 
 
 router = APIRouter(
@@ -27,23 +41,20 @@ router = APIRouter(
 # PASSWORD HANDLING
 # ==========================
 
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto"
-)
-
-
-def hash_password(password: str):
-    return pwd_context.hash(password)
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt()
+    ).decode("utf-8")
 
 
 def verify_password(
     plain_password: str,
     hashed_password: str
-):
-    return pwd_context.verify(
-        plain_password,
-        hashed_password
+) -> bool:
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"),
+        hashed_password.encode("utf-8")
     )
 
 
@@ -54,7 +65,7 @@ def verify_password(
 
 @router.post(
     "/register/manager",
-    response_model=UserResponse
+    response_model=UserWithCompanyResponse
 )
 def register_manager(
     data: ManagerRegister,
@@ -78,6 +89,19 @@ def register_manager(
         raise HTTPException(
             status_code=400,
             detail="Company name or code already exists"
+        )
+
+
+    existing_user = (
+        db.query(User)
+        .filter(User.email == data.email)
+        .first()
+    )
+
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="An account with this email already exists"
         )
 
 
@@ -109,7 +133,7 @@ def register_manager(
     db.refresh(manager)
 
 
-    return manager
+    return _with_company(manager, company)
 
 
 
@@ -120,7 +144,7 @@ def register_manager(
 
 @router.post(
     "/register/employee",
-    response_model=UserResponse
+    response_model=UserWithCompanyResponse
 )
 def register_employee(
     data: EmployeeRegister,
@@ -147,6 +171,18 @@ def register_employee(
         )
 
 
+    existing_user = (
+        db.query(User)
+        .filter(User.email == data.email)
+        .first()
+    )
+
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="An account with this email already exists"
+        )
+
 
     # Create employee
 
@@ -164,7 +200,7 @@ def register_employee(
     db.refresh(employee)
 
 
-    return employee
+    return _with_company(employee, company)
 
 
 
@@ -175,7 +211,7 @@ def register_employee(
 
 @router.post(
     "/login",
-    response_model=UserResponse
+    response_model=UserWithCompanyResponse
 )
 def login(
     data: LoginRequest,
@@ -210,4 +246,10 @@ def login(
         )
 
 
-    return user
+    company = (
+        db.query(Company)
+        .filter(Company.id_company == user.company_id)
+        .first()
+    )
+
+    return _with_company(user, company)

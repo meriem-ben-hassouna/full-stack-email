@@ -2,6 +2,8 @@ from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime
 
+from app.schemas.contact import ContactResponse
+
 
 
 # =========================
@@ -39,3 +41,13 @@ class GroupResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+
+# =========================
+# GROUP WITH MEMBER DETAILS
+# (used to render bubble click -> member list, and group builder)
+# =========================
+
+class GroupWithMembers(GroupResponse):
+    members: list[ContactResponse] = []

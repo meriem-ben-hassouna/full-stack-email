@@ -11,7 +11,10 @@ from datetime import datetime
 class EmailCreate(BaseModel):
 
     sender_id: UUID
-    group_ids: list[UUID]
+    group_ids: list[UUID] = []
+    # direct contact ids, used e.g. for the virtual "All" bubble which
+    # is not a real group in the database
+    contact_ids: list[UUID] = []
 
     subject: str
     body: str
@@ -30,6 +33,7 @@ class EmailResponse(BaseModel):
     body: str
     sent_at: datetime
     status: str
+    recipients_count: int = 0
 
 
     class Config:
