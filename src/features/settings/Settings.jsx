@@ -1,6 +1,6 @@
 import Card from "../../components/Card.jsx";
 import Button from "../../components/Button.jsx";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../hooks/useAuth.js";
 
 export default function Settings() {
   const { user, isManager } = useAuth();

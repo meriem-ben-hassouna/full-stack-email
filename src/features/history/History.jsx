@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Card from "../../components/Card.jsx";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../hooks/useAuth.js";
 import { getEmailHistory } from "../../services/emailService.js";
 
 export default function History() {

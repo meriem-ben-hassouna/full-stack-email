@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Card from "../../components/Card.jsx";
 import Button from "../../components/Button.jsx";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../hooks/useAuth.js";
 import { importContacts } from "../../services/contactService.js";
 
 export default function UploadExcel() {
@@ -19,6 +19,10 @@ export default function UploadExcel() {
   };
 
   const handleImport = async () => {
+    console.log("SELECTED FILE:", file);
+    console.log("FILE NAME:", file?.name);
+    console.log("FILE SIZE:", file?.size);
+    console.log("FILE TYPE:", file?.type);
     if (!file) return;
     setImporting(true);
     setResult(null);

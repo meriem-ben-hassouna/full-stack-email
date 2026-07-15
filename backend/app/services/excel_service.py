@@ -7,12 +7,27 @@ from app.models.contact import Contact
 
 
 def import_contacts_from_excel(
+    
     db: Session,
     file,
     company_id: str,
     imported_by: str,
     filename: str
 ):
+    print("FILE OBJECT:", file)
+    print("FILE TYPE:", type(file))
+
+    try:
+        print("FILE POSITION BEFORE SEEK:", file.tell())
+    except Exception as e:
+        print("NO TELL:", e)
+
+    file.seek(0)
+
+    try:
+        print("FILE POSITION AFTER SEEK:", file.tell())
+    except Exception as e:
+        print("NO TELL:", e)
     """
     Expected sheet structure (row 1 = header, skipped):
         column A: name
@@ -23,8 +38,32 @@ def import_contacts_from_excel(
     (already in the DB, or repeated within the same file) are skipped.
     """
 
-    workbook = openpyxl.load_workbook(file)
+    # Reset uploaded file pointer
+    file.seek(0)
+
+    from io import BytesIO
+
+    file.seek(0)
+
+    contents = file.read()
+
+    print("UPLOADED BYTES:", len(contents))
+
+    workbook = openpyxl.load_workbook(
+        BytesIO(contents),
+        data_only=True
+    )
+
+    print("WORKBOOK SHEETS:", workbook.sheetnames)
+
+    if not workbook.sheetnames:
+        raise Exception("Excel file has no sheets")
+
     sheet = workbook.active
+
+    print("ACTIVE SHEET:", sheet.title)
+    print("ROWS:", sheet.max_row)
+    print("COLS:", sheet.max_column)
 
     # Create the file record first so contacts can reference it
     contact_file = ContactFile(

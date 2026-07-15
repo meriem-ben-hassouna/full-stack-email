@@ -1,7 +1,6 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
+import AuthContext from "./AuthContext.js";
 import * as authService from "../services/authService.js";
-
-const AuthContext = createContext(null);
 
 const STORAGE_KEY = "noxinbox_user";
 
@@ -68,12 +67,4 @@ export function AuthProvider({ children }) {
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return ctx;
 }

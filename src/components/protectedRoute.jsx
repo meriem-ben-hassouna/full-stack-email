@@ -1,9 +1,9 @@
 import { Navigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth.js";
 
-// Placeholder auth guard. Swap `isAuthenticated` for real auth state
-// (e.g. from context or a token check) once the backend is connected.
+// Guards the app routes: only logged-in users get past this point.
 export default function ProtectedRoute({ children }) {
-  const isAuthenticated = true;
+  const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

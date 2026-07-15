@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Button from "../../components/Button.jsx";
 import Lmanager from "../../assets/icons/managerl.png";
 import Lemployee from "../../assets/icons/employeel.png";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../hooks/useAuth.js";
 
 export default function Register() {
   const [role, setRole] = useState("manager"); // "manager" | "employee"

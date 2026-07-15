@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Base URL of the FastAPI backend. Override with VITE_API_BASE_URL in a
 // .env file if the backend runs somewhere other than localhost:8000.
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const baseURL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
 const api = axios.create({
   baseURL,

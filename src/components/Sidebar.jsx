@@ -1,6 +1,6 @@
 
 import { NavLink } from "react-router-dom";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../hooks/useAuth.js";
 
 import groupBuilder from "../assets/icons/group.png";
 import dashboardGrid from "../assets/icons/grid.png";

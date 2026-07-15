@@ -90,6 +90,16 @@ def import_contacts(
             detail="Only .xlsx/.xls files are supported"
         )
 
+    print("RECEIVED FILE:", file.filename)
+    print("CONTENT TYPE:", file.content_type)
+
+    contents = file.file.read()
+
+    print("FILE BYTES:", len(contents))
+
+    # Reset pointer after reading
+    file.file.seek(0)
+
     contact_file, imported, skipped = import_contacts_from_excel(
         db=db,
         file=file.file,
@@ -97,7 +107,7 @@ def import_contacts(
         imported_by=imported_by,
         filename=file.filename
     )
-    
+
     return {
         "message": "Contacts imported successfully",
         "file_id": contact_file.id_file,
@@ -105,7 +115,6 @@ def import_contacts(
         "imported": imported,
         "skipped_duplicates": skipped,
     }
-
 
 # ==========================
 # DELETE CONTACT

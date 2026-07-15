@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Card from "../../components/Card.jsx";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../hooks/useAuth.js";
 import { getContacts, deleteContact } from "../../services/contactService.js";
 import { getGroups, getGroupWithMembers } from "../../services/groupService.js";
 
