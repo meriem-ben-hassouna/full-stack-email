@@ -1,7 +1,9 @@
 import re
 import os
+import html
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 
 # Matches [contact name], [Contact Name], [name], {contact_name}, etc.
@@ -22,12 +24,46 @@ def personalize_body(body: str, contact_name: str) -> str:
     return PLACEHOLDER_PATTERN.sub(contact_name, body)
 
 
+# ==========================
+# LIGHTWEIGHT MARKUP -> HTML
+# The composer's B / I / U / H1 / H2 toolbar buttons wrap selected
+# text in **bold**, *italic*, _underline_ and "# " / "## " heading
+# prefixes. This turns that into real HTML so it actually renders
+# formatted in the recipient's inbox.
+# ==========================
+
+def _markup_to_html(body: str) -> str:
+    lines = body.split("\n")
+    html_lines = []
+
+    for line in lines:
+        escaped = html.escape(line)
+
+        if escaped.startswith("## "):
+            html_lines.append(f"<h2>{escaped[3:]}</h2>")
+            continue
+        if escaped.startswith("# "):
+            html_lines.append(f"<h1>{escaped[2:]}</h1>")
+            continue
+
+        # Bold and italic share the * character, so bold (**) must be
+        # replaced before single-* italics to avoid double-matching.
+        escaped = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", escaped)
+        escaped = re.sub(r"\*(.+?)\*", r"<i>\1</i>", escaped)
+        escaped = re.sub(r"_(.+?)_", r"<u>\1</u>", escaped)
+
+        html_lines.append(escaped if escaped else "&nbsp;")
+
+    return "<br>".join(html_lines)
+
+
 def send_email(to_email: str, subject: str, body: str) -> bool:
     """
     Sends a single email. If SMTP credentials are configured via
-    environment variables, a real email is sent. Otherwise the send
-    is simulated (useful for local development / demos without a
-    mail provider) and always reports success.
+    environment variables, a real email is sent (as HTML, so bold /
+    italic / underline / headings from the composer actually render).
+    Otherwise the send is simulated (useful for local development /
+    demos without a mail provider) and always reports success.
     """
 
     smtp_host = os.getenv("SMTP_HOST")
@@ -40,10 +76,15 @@ def send_email(to_email: str, subject: str, body: str) -> bool:
         return True
 
     try:
-        message = MIMEText(body, "plain")
+        message = MIMEMultipart("alternative")
         message["Subject"] = subject
         message["From"] = smtp_user
         message["To"] = to_email
+
+        # Plain-text fallback for clients that don't render HTML,
+        # plus the real HTML version with formatting applied.
+        message.attach(MIMEText(body, "plain"))
+        message.attach(MIMEText(_markup_to_html(body), "html"))
 
         with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
             server.starttls()

@@ -1197,3 +1197,57 @@ max-narrow{
   flex: 1;
   min-width: 160px;
 }
+
+/* ======================
+   EMAIL HISTORY DETAIL MODAL
+   ====================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-panel {
+  background: var(--card);
+  border-radius: 30px;
+  padding: 24px;
+  max-width: 560px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.modal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  font-family: var(--font-secondary);
+  font-size: 13px;
+  color: var(--mutedText);
+  margin-bottom: 16px;
+}
+
+.modal-body {
+  font-family: var(--font-main);
+  font-size: 16px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}

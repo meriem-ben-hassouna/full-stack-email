@@ -19,10 +19,6 @@ export default function UploadExcel() {
   };
 
   const handleImport = async () => {
-    console.log("SELECTED FILE:", file);
-    console.log("FILE NAME:", file?.name);
-    console.log("FILE SIZE:", file?.size);
-    console.log("FILE TYPE:", file?.type);
     if (!file) return;
     setImporting(true);
     setResult(null);

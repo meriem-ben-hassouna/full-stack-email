@@ -90,23 +90,16 @@ def import_contacts(
             detail="Only .xlsx/.xls files are supported"
         )
 
-    print("RECEIVED FILE:", file.filename)
-    print("CONTENT TYPE:", file.content_type)
-
-    contents = file.file.read()
-
-    print("FILE BYTES:", len(contents))
-
-    # Reset pointer after reading
-    file.file.seek(0)
-
-    contact_file, imported, skipped = import_contacts_from_excel(
-        db=db,
-        file=file.file,
-        company_id=company_id,
-        imported_by=imported_by,
-        filename=file.filename
-    )
+    try:
+        contact_file, imported, skipped = import_contacts_from_excel(
+            db=db,
+            file=file.file,
+            company_id=company_id,
+            imported_by=imported_by,
+            filename=file.filename
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     return {
         "message": "Contacts imported successfully",

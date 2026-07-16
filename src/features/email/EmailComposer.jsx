@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Card from "../../components/Card.jsx";
 import Button from "../../components/Button.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -15,6 +15,7 @@ export default function EmailComposer() {
   const [form, setForm] = useState({ target: ALL_OPTION, subject: "", body: "" });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const textareaRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
@@ -35,6 +36,63 @@ export default function EmailComposer() {
     form.target === ALL_OPTION
       ? "All Contacts"
       : groups.find((g) => g.id_group === form.target)?.name || "";
+
+  // Wraps (bold/italic/underline) or prefixes (H1/H2) the currently
+  // selected text in the body textarea with lightweight markup. The
+  // backend converts this markup into real HTML formatting (<b>, <i>,
+  // <u>, <h1>, <h2>) when the email is actually sent, so bold really
+  // shows up bold in the recipient's inbox.
+  const applyFormat = (type) => {
+    const el = textareaRef.current;
+    if (!el) return;
+
+    const { selectionStart, selectionEnd, value } = el;
+    const selected = value.slice(selectionStart, selectionEnd) || "text";
+
+    let before = value.slice(0, selectionStart);
+    let after = value.slice(selectionEnd);
+    let inserted = selected;
+    let cursorOffset = 0;
+
+    if (type === "bold") {
+      inserted = `**${selected}**`;
+      cursorOffset = 2;
+    } else if (type === "italic") {
+      inserted = `*${selected}*`;
+      cursorOffset = 1;
+    } else if (type === "underline") {
+      inserted = `_${selected}_`;
+      cursorOffset = 1;
+    } else if (type === "h1" || type === "h2") {
+      // Headings apply to the whole line the cursor/selection is on.
+      const lineStart = before.lastIndexOf("\n") + 1;
+      const lineEndRel = after.indexOf("\n");
+      const lineEnd = lineEndRel === -1 ? value.length : selectionEnd + lineEndRel;
+      const line = value.slice(lineStart, lineEnd).replace(/^#{1,2}\s*/, "");
+      const prefix = type === "h1" ? "# " : "## ";
+
+      const newValue = value.slice(0, lineStart) + prefix + line + value.slice(lineEnd);
+      setForm((f) => ({ ...f, body: newValue }));
+
+      requestAnimationFrame(() => {
+        const pos = lineStart + prefix.length + line.length;
+        el.focus();
+        el.setSelectionRange(pos, pos);
+      });
+      return;
+    }
+
+    const newValue = before + inserted + after;
+    setForm((f) => ({ ...f, body: newValue }));
+
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(
+        selectionStart + cursorOffset,
+        selectionStart + cursorOffset + selected.length
+      );
+    });
+  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -98,15 +156,16 @@ export default function EmailComposer() {
           </div>
 
           <div className="composer-toolbar">
-            <button type="button"><b>B</b></button>
-            <button type="button"><i>I</i></button>
-            <button type="button"><u>U</u></button>
-            <button type="button">H1</button>
-            <button type="button">H2</button>
+            <button type="button" onClick={() => applyFormat("bold")} title="Bold"><b>B</b></button>
+            <button type="button" onClick={() => applyFormat("italic")} title="Italic"><i>I</i></button>
+            <button type="button" onClick={() => applyFormat("underline")} title="Underline"><u>U</u></button>
+            <button type="button" onClick={() => applyFormat("h1")} title="Heading 1">H1</button>
+            <button type="button" onClick={() => applyFormat("h2")} title="Heading 2">H2</button>
           </div>
 
           <div className="field">
             <textarea
+              ref={textareaRef}
               name="body"
               value={form.body}
               onChange={handleChange}
@@ -116,7 +175,9 @@ export default function EmailComposer() {
             />
             <p className="dropzone-hint" style={{ marginTop: 6 }}>
               Tip: write <code>[contact name]</code> anywhere in the message — each
-              recipient will get a copy personalized with their own name.
+              recipient will get a copy personalized with their own name. Select
+              text and use B / I / U / H1 / H2 to format it — it'll appear
+              properly formatted in the email recipients receive.
             </p>
           </div>
 
